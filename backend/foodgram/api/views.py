@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
-from django.http import HttpResponse
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
@@ -28,28 +28,26 @@ from .serializers import (
 )
 from recipes.models import (
     Favorite,
+    Follow,
     Ingredient,
-    IngredientRecipe,
     Recipe,
+    RecipeIngredients,
     ShoppingCart,
     Tag,
 )
-from users.models import Follow
+from .utils import generate_shopping_list_text
 
 
 User = get_user_model()
 
 
-class UserViewSet(UserViewSet):
+class CustomUserViewSet(UserViewSet):
+    queryset = User.objects.all()
     pagination_class = LimitPagination
-
-    def get_queryset(self):
-        return User.objects.all()
 
     def get_permissions(self):
         if self.action == 'me':
-            self.permission_classes = (IsAuthenticated,
-                                       AuthorOrReadOnly,)
+            return (IsAuthenticated(), AuthorOrReadOnly(),)
         return super().get_permissions()
 
     @action(
@@ -58,7 +56,7 @@ class UserViewSet(UserViewSet):
         permission_classes=(IsAuthenticated,)
     )
     def subscribe(self, request, **kwargs):
-        user = get_object_or_404(User, username=request.user)
+        follower = request.user
         author = get_object_or_404(User, id=self.kwargs.get('id'))
         serializer = FollowSerializer(
             author,
@@ -68,28 +66,23 @@ class UserViewSet(UserViewSet):
         serializer.is_valid(raise_exception=True)
 
         if request.method == 'POST':
-            Follow.objects.create(user=user, author=author)
+            Follow.objects.create(follower=follower, author=author)
             return Response(serializer.data, status=HTTP_201_CREATED)
 
-        if request.method == 'DELETE':
-            subscription = get_object_or_404(
-                Follow, user=user, author=author
-            )
-            subscription.delete()
-            return Response(status=HTTP_204_NO_CONTENT)
-
-        return Response(status=HTTP_400_BAD_REQUEST)
+        get_object_or_404(Follow, follower=follower, author=author).delete()
+        return Response(status=HTTP_204_NO_CONTENT)
 
     @action(
         detail=False,
         permission_classes=(IsAuthenticated,)
     )
     def subscriptions(self, request):
-        user = get_object_or_404(User, username=request.user)
-        queryset = User.objects.filter(following__user=user)
-        pages = self.paginate_queryset(queryset)
         serializer = FollowSerializer(
-            pages,
+            self.paginate_queryset(
+                User.objects.filter(
+                    authors__follower=request.user
+                )
+            ),
             many=True,
             context={'request': request}
         )
@@ -98,12 +91,10 @@ class UserViewSet(UserViewSet):
 
 class RecipeViewSet(ModelViewSet):
     queryset = Recipe.objects.all()
-    serializer_class = RecipeSafeSerializer
     pagination_class = LimitPagination
     permission_classes = (AuthorOrReadOnly,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipeFilter
-    ordering = ('-id',)
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -113,20 +104,23 @@ class RecipeViewSet(ModelViewSet):
             return RecipeSafeSerializer
         return RecipeSerializer
 
-    def create_recipe(self, user, pk, serializer):
-        serializer = serializer(
-            data={'user': user.id, 'recipe': pk},
-            context={'request': self.request}
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=HTTP_201_CREATED)
+    @staticmethod
+    def add_to_delete_from(request, pk, model, serializer):
+        if request.method == 'POST':
+            serializer = serializer(
+                data={'user': request.user.id, 'recipe': pk},
+                context={'request': request}
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=HTTP_201_CREATED)
 
-    def delete_recipe(self, model, user, pk):
-        recipe = get_object_or_404(Recipe, id=pk)
-        obj = model.objects.filter(user=user, recipe=recipe)
-        if obj.exists():
-            obj.delete()
+        recipe_in_list = model.objects.filter(
+            user=request.user,
+            recipe=get_object_or_404(Recipe, id=pk)
+        )
+        if recipe_in_list.exists():
+            recipe_in_list.delete()
             return Response(status=HTTP_204_NO_CONTENT)
         return Response(
             {'errors': 'Рецепт не существует'},
@@ -135,21 +129,15 @@ class RecipeViewSet(ModelViewSet):
 
     @action(detail=True, methods=('POST', 'DELETE'))
     def favorite(self, request, pk):
-        if request.method == 'POST':
-            return self.create_recipe(request.user, pk, FavoriteSerializer)
-        if request.method == 'DELETE':
-            return self.delete_recipe(Favorite, request.user, pk)
-        return None
+        return self.add_to_delete_from(
+            request, pk, Favorite, FavoriteSerializer
+        )
 
     @action(detail=True, methods=('POST', 'DELETE'))
     def shopping_cart(self, request, pk):
-        if request.method == 'POST':
-            return self.create_recipe(
-                request.user, pk, ShoppingCartSerializer
-            )
-        if request.method == 'DELETE':
-            return self.delete_recipe(ShoppingCart, request.user, pk)
-        return None
+        return self.add_to_delete_from(
+            request, pk, ShoppingCart, ShoppingCartSerializer
+        )
 
     @action(
         methods=('GET',),
@@ -166,21 +154,27 @@ class RecipeViewSet(ModelViewSet):
         )
         file_name = 'shopping_cart.txt'
         shopping_list = []
-        shopping_list.append(f'Список покупок пользователя {user.username}:\n')
-        ingredients = IngredientRecipe.objects.filter(
+        ingredients = RecipeIngredients.objects.filter(
             recipe_id__in=shopping
         ).values('ingredient').annotate(total_amount=Sum('amount'))
         for ingredient in ingredients:
             ingredient_obj = Ingredient.objects.get(
                 id=ingredient['ingredient']
             )
-            shopping_list.append('{0} ({1}) - {2}'.format(
-                ingredient_obj.name,
-                ingredient_obj.measurement_unit,
-                ingredient['total_amount']
-            ))
-        response_content = '\n'.join(shopping_list)
-        response = HttpResponse(response_content, content_type="text")
+            shopping_list.append({
+                'name': ingredient_obj.name,
+                'measurement_unit': ingredient_obj.measurement_unit,
+                'total_amount': ingredient['total_amount']
+            })
+        recipes = [
+            recipe.name for recipe in Recipe.objects.filter(id__in=shopping)
+        ]
+        response_content = generate_shopping_list_text(
+            user,
+            shopping_list,
+            recipes
+        )
+        response = FileResponse(response_content, content_type="text")
         response['Content-Disposition'] = 'attachment; filename={0}'.format(
             file_name
         )

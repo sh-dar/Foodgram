@@ -25,7 +25,6 @@ INSTALLED_APPS = [
     'djoser',
     'django_filters',
     'recipes.apps.RecipesConfig',
-    'users.apps.UsersConfig',
     'api.apps.ApiConfig',
 ]
 
@@ -99,7 +98,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AUTH_USER_MODEL = 'users.MyUser'
+AUTH_USER_MODEL = 'recipes.User'
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [

@@ -1,6 +1,7 @@
 import json
 
 from django.core.management.base import BaseCommand
+from django.db import transaction
 
 from recipes.models import Ingredient
 
@@ -14,20 +15,27 @@ class Command(BaseCommand):
         with open(file_path, 'r', encoding='utf-8') as file:
             ingredients = json.load(file)
 
+            ingredients_to_create = []
+            existing_ingredients = Ingredient.objects.values_list(
+                'name',
+                flat=True
+            )
+
             for ingredient in ingredients:
                 name = ingredient['name']
                 measurement_unit = ingredient['measurement_unit']
 
-                ingredient, created = Ingredient.objects.update_or_create(
-                    name=name,
-                    defaults={'measurement_unit': measurement_unit}
-                )
+                if name not in existing_ingredients:
+                    ingredients_to_create.append(
+                        Ingredient(
+                            name=name,
+                            measurement_unit=measurement_unit
+                        )
+                    )
 
-                if created:
-                    self.stdout.write(self.style.SUCCESS(
-                        f'Добавлен ингредиент: {ingredient.name}'
-                    ))
-                else:
-                    self.stdout.write(self.style.WARNING(
-                        f'Ингредиент уже существует: {ingredient.name}'
-                    ))
+            with transaction.atomic():
+                Ingredient.objects.bulk_create(ingredients_to_create)
+
+        self.stdout.write(self.style.SUCCESS(
+            'Продукты успешно импортированы'
+        ))
