@@ -39,6 +39,7 @@ class User(AbstractUser):
     class Meta:
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
+        ordering = ('username',)
 
     def __str__(self):
         return self.username
@@ -70,55 +71,6 @@ class Follow(models.Model):
 
     def __str__(self):
         return f'Пользователь {self.follower} подписан на {self.author}'
-
-
-class Recipe(models.Model):
-    name = models.CharField(
-        'Рецепт',
-        max_length=MAX_LENGTH_CHAR,
-    )
-    author = models.ForeignKey(
-        User,
-        verbose_name='Автор рецепта',
-        on_delete=models.CASCADE,
-    )
-    image = models.ImageField(
-        'Изображение',
-        upload_to='recipes/images/',
-    )
-    text = models.TextField(
-        'Текстовое описание',
-    )
-    cooking_time = models.PositiveIntegerField(
-        'Время приготовления в минутах',
-        validators=(
-            MinValueValidator(
-                MIN_TIME,
-                message=f'Время приготовления должно быть '
-                        f'не менее {MIN_TIME} мин.'
-            ),
-        ),
-        help_text=f'Введите время приготовления в минутах. '
-                  f'Минимум: {MIN_TIME}.'
-    )
-    ingredients = models.ManyToManyField(
-        'Ingredient',
-        through='RecipeIngredients',
-        verbose_name='продукты',
-    )
-    tags = models.ManyToManyField(
-        'Tag',
-        verbose_name='Теги',
-    )
-
-    class Meta:
-        verbose_name = 'рецепт'
-        verbose_name_plural = 'Рецепты'
-        default_related_name = 'recipes'
-        ordering = ('name',)
-
-    def __str__(self):
-        return self.name[:MAX_LENGTH_STRING]
 
 
 class Tag(models.Model):
@@ -165,6 +117,55 @@ class Ingredient(models.Model):
         ordering = ('name',)
 
     def __str__(self):
+        return f'{self.name[:MAX_LENGTH_STRING]} ({self.measurement_unit})'
+
+
+class Recipe(models.Model):
+    name = models.CharField(
+        'Рецепт',
+        max_length=MAX_LENGTH_CHAR,
+    )
+    author = models.ForeignKey(
+        User,
+        verbose_name='Автор рецепта',
+        on_delete=models.CASCADE,
+    )
+    image = models.ImageField(
+        'Изображение',
+        upload_to='recipes/images/',
+    )
+    text = models.TextField(
+        'Текстовое описание',
+    )
+    cooking_time = models.PositiveIntegerField(
+        'Время приготовления в минутах',
+        validators=(
+            MinValueValidator(
+                MIN_TIME,
+                message=f'Время приготовления должно быть '
+                        f'не менее {MIN_TIME} мин.'
+            ),
+        ),
+        help_text=f'Введите время приготовления в минутах. '
+                  f'Минимум: {MIN_TIME}.'
+    )
+    ingredients = models.ManyToManyField(
+        Ingredient,
+        through='RecipeIngredients',
+        verbose_name='продукты',
+    )
+    tags = models.ManyToManyField(
+        Tag,
+        verbose_name='Теги',
+    )
+
+    class Meta:
+        verbose_name = 'рецепт'
+        verbose_name_plural = 'Рецепты'
+        default_related_name = 'recipes'
+        ordering = ('name',)
+
+    def __str__(self):
         return self.name[:MAX_LENGTH_STRING]
 
 
@@ -206,13 +207,13 @@ class UserRelatedRecipe(models.Model):
         User,
         on_delete=models.CASCADE,
         verbose_name='Пользователь',
-        related_name='%(app_label)s_%(class)s_related',
+        related_name='%(class)ss'
     )
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
         verbose_name='Рецепт',
-        related_name='%(app_label)s_%(class)s_related',
+        related_name='%(class)ss',
     )
 
     class Meta:
@@ -220,7 +221,7 @@ class UserRelatedRecipe(models.Model):
         constraints = (
             models.UniqueConstraint(
                 fields=('user', 'recipe',),
-                name='unique_%(app_label)s_%(class)s_user_recipe'
+                name='unique_%(class)s_user_recipe'
             ),
         )
 
@@ -230,13 +231,13 @@ class UserRelatedRecipe(models.Model):
 
 class Favorite(UserRelatedRecipe):
 
-    class Meta:
+    class Meta(UserRelatedRecipe.Meta):
         verbose_name = 'рецепт в избранном'
         verbose_name_plural = 'Рецепты в избранном'
 
 
 class ShoppingCart(UserRelatedRecipe):
 
-    class Meta:
+    class Meta(UserRelatedRecipe.Meta):
         verbose_name = 'рецепт в списке покупок'
         verbose_name_plural = 'Рецепты в списке покупок'

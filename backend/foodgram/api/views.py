@@ -3,7 +3,7 @@ from django.db.models import Sum
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from djoser.views import UserViewSet
+from djoser.views import UserViewSet as DjoserUserViewSet
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 from rest_framework.response import Response
@@ -41,7 +41,7 @@ from .utils import generate_shopping_list_text
 User = get_user_model()
 
 
-class CustomUserViewSet(UserViewSet):
+class UserViewSet(DjoserUserViewSet):
     queryset = User.objects.all()
     pagination_class = LimitPagination
 
@@ -114,7 +114,10 @@ class RecipeViewSet(ModelViewSet):
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data, status=HTTP_201_CREATED)
-
+        # Не могу использовать get_object_or_404(...).delete(), т.к. в постмане
+        # есть условие: "Запрос зарегистрированного пользователя на удаление из
+        # корзины рецепта, который не был туда добавлен, должен вернуть ответ
+        # со статусом 400"
         recipe_in_list = model.objects.filter(
             user=request.user,
             recipe=get_object_or_404(Recipe, id=pk)
@@ -148,37 +151,26 @@ class RecipeViewSet(ModelViewSet):
     )
     def download_shopping_cart(self, request):
         user = self.request.user
-        shopping = ShoppingCart.objects.filter(user=user).values_list(
-            'recipe',
-            flat=True
-        )
-        file_name = 'shopping_cart.txt'
-        shopping_list = []
-        ingredients = RecipeIngredients.objects.filter(
-            recipe_id__in=shopping
-        ).values('ingredient').annotate(total_amount=Sum('amount'))
-        for ingredient in ingredients:
-            ingredient_obj = Ingredient.objects.get(
-                id=ingredient['ingredient']
-            )
-            shopping_list.append({
-                'name': ingredient_obj.name,
-                'measurement_unit': ingredient_obj.measurement_unit,
-                'total_amount': ingredient['total_amount']
-            })
+        shopping_list = RecipeIngredients.objects.filter(
+            recipe__shoppingcarts__user=user
+        ).values(
+            'ingredient__name',
+            'ingredient__measurement_unit'
+        ).annotate(total_amount=Sum('amount'))
         recipes = [
-            recipe.name for recipe in Recipe.objects.filter(id__in=shopping)
+            recipe for recipe in Recipe.objects.filter(
+                shoppingcarts__user=user
+            )
         ]
-        response_content = generate_shopping_list_text(
-            user,
-            shopping_list,
-            recipes
+        return FileResponse(
+            generate_shopping_list_text(
+                user,
+                shopping_list,
+                recipes
+            ),
+            content_type='text',
+            filename='shopping_cart.txt'
         )
-        response = FileResponse(response_content, content_type="text")
-        response['Content-Disposition'] = 'attachment; filename={0}'.format(
-            file_name
-        )
-        return response
 
 
 class IngredientViewSet(ReadOnlyModelViewSet):

@@ -2,11 +2,10 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.db.models import Q
-from django.utils.html import format_html
 from django.utils.safestring import mark_safe
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy
 
-from .constants import FAST_COOKING as FC, SLOW_COOKING as SC
+from .constants import FAST_COOKING, SLOW_COOKING
 from .models import (
     Favorite,
     Follow,
@@ -26,43 +25,61 @@ class HasSubscriptionsOrFollowersFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return (
-            ('true', 'Да'),
-            ('false', 'Нет'),
+            ('has_subscriptions', 'Есть подписки'),
+            ('has_followers', 'Есть подписчики'),
         )
 
     def queryset(self, request, users):
-        if self.value() == 'true':
+        if self.value() == 'has_subscriptions':
             return users.filter(
-                Q(followers__isnull=False) | Q(authors__isnull=False)
+                Q(authors__isnull=False)
             )
-        elif self.value() == 'false':
-            return users.exclude(
-                Q(followers__isnull=False) | Q(authors__isnull=False)
+        if self.value() == 'has_followers':
+            return users.filter(
+                Q(followers__isnull=False)
             )
 
 
 class CookingTimeFilter(admin.SimpleListFilter):
-    title = _('Время приготовления')
+    title = 'Время приготовления'
     parameter_name = 'cooking_time'
 
     def lookups(self, request, model_admin):
+        fast_recipes_count = Recipe.objects.filter(
+            cooking_time__lt=FAST_COOKING
+        ).count()
+        medium_recipes_count = Recipe.objects.filter(
+            cooking_time__range=(FAST_COOKING, SLOW_COOKING)
+        ).count()
+        slow_recipes_count = Recipe.objects.filter(
+            cooking_time__gt=SLOW_COOKING
+        ).count()
+
         return (
-            ('fast', _('Быстрые')),
-            ('medium', _('Средние')),
-            ('slow', _('Долгие')),
+            (
+                (0, FAST_COOKING - 1),
+                f'Быстрые (< {FAST_COOKING} мин) '
+                f'({fast_recipes_count})'
+            ),
+            (
+                (FAST_COOKING, SLOW_COOKING),
+                f'Средние ({FAST_COOKING} - {SLOW_COOKING} мин) '
+                f'({medium_recipes_count})'
+            ),
+            (
+                (SLOW_COOKING + 1, 10**10),
+                f'Долгие (> {SLOW_COOKING} мин) '
+                f'({slow_recipes_count})'
+            ),
         )
 
-    def queryset(self, request, queryset):
-        if self.value() == 'fast':
-            return queryset.filter(cooking_time__lt=FC)
-        elif self.value() == 'medium':
-            return queryset.filter(cooking_time__gte=FC, cooking_time__lt=SC)
-        elif self.value() == 'slow':
-            return queryset.filter(cooking_time__gte=SC)
+    def queryset(self, request, recipes):
+        if self.value():
+            return recipes.filter(cooking_time__range=eval(self.value()))
 
 
 @admin.register(User)
-class CustomUserAdmin(UserAdmin):
+class UserAdmin(UserAdmin):
     list_display = (
         'username',
         'first_name',
@@ -76,21 +93,19 @@ class CustomUserAdmin(UserAdmin):
         'username',
         'email',
     )
+    list_filter = (HasSubscriptionsOrFollowersFilter,)
 
-    @admin.display(description='Количество рецептов')
+    @admin.display(description='Рецепты')
     def total_recipes(self, recipe):
         return recipe.recipes.count()
 
-    @admin.display(description='Количество подписок')
+    @admin.display(description='Подписки')
     def total_authors(self, author):
         return Follow.objects.filter(author=author).count()
 
-    @admin.display(description='Количество подписчиков')
+    @admin.display(description='Подписчики')
     def total_followers(self, follower):
         return Follow.objects.filter(follower=follower).count()
-
-    def get_list_filter(self, request):
-        return (HasSubscriptionsOrFollowersFilter,)
 
 
 @admin.register(Follow)
@@ -111,11 +126,6 @@ class FollowAdmin(admin.ModelAdmin):
 class IngredientInline(admin.TabularInline):
     model = RecipeIngredients
     extra = 3
-    readonly_fields = ('measurement_unit',)
-
-    @admin.display(description='Единица измерения')
-    def measurement_unit(self, item):
-        return item.ingredient.measurement_unit
 
 
 @admin.register(Recipe)
@@ -148,40 +158,28 @@ class RecipeAdmin(admin.ModelAdmin):
     )
 
     @admin.display(description='Изображение')
+    @mark_safe
     def display_image(self, recipe):
-        return format_html(
-            f'<img src="{recipe.image.url}" width="80" height="60">'
-        )
+        return f'<img src="{recipe.image.url}" width="80" height="60">'
 
     @admin.display(description='В избранном')
     def total_favorite(self, recipe):
-        return Favorite.objects.filter(recipe=recipe).count()
+        return recipe.recipes_favorite_related.count()
 
     @admin.display(description='Теги')
+    @mark_safe
     def display_tags(self, recipe):
-        tags_list = [
-            f'<li>{tag.name}</li>'
-            for tag in recipe.tags.all()
-        ]
-        return mark_safe('<ul>' + ''.join(tags_list) + '</ul>')
+        return '<br>'.join(tag.name for tag in recipe.tags.all())
 
     @admin.display(description='Продукты')
+    @mark_safe
     def display_ingredients(self, recipe):
-        ingredients_list = []
-        for ingredient in recipe.ingredients.all():
-            recipe_ingredient = RecipeIngredients.objects.get(
-                recipe=recipe,
-                ingredient=ingredient
-            )
-            ingredients_list.append(
-                f'<li>{ingredient.name}: '
-                f'{recipe_ingredient.amount} '
-                f'{ingredient.measurement_unit}</li>')
-        return mark_safe('<ul>' + ''.join(ingredients_list) + '</ul>')
-
-    def get_formsets_with_inlines(self, request, recipe=None):
-        for inline in self.get_inline_instances(request, recipe):
-            yield inline.get_formset(request, recipe), inline
+        return '<br> '.join(
+            f'{ingredient.ingredient.name} - '
+            f'{ingredient.amount} '
+            f'{ingredient.ingredient.measurement_unit} '
+            for ingredient in recipe.recipe_ingredients.all()
+        )
 
 
 @admin.register(Ingredient)
@@ -206,18 +204,15 @@ class IngredientAdmin(admin.ModelAdmin):
 
 @admin.register(RecipeIngredients)
 class RecipeIngredientsAdmin(admin.ModelAdmin):
-    list_display = ('ingredient', 'recipe', 'amount', 'measurement_unit')
+    list_display = ('ingredient', 'amount', 'recipe')
     search_fields = ('recipe__name', 'ingredient__name')
-
-    @admin.display(description='Мера')
-    def measurement_unit(self, recipe_ingredient):
-        return recipe_ingredient.ingredient.measurement_unit
 
 
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
     list_display = (
         'name',
+        'display_color',
         'color',
         'slug',
     )
@@ -227,6 +222,13 @@ class TagAdmin(admin.ModelAdmin):
     list_filter = (
         'name',
     )
+    @admin.display(description='Цвет')
+    @mark_safe
+    def display_color(self, tag):
+        return (
+            f'<div style="background-color:{tag.color}; '
+            f'width:30px; height:30px;">'
+        )
 
 
 @admin.register(Favorite)
