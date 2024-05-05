@@ -21,13 +21,13 @@
 git clone git@github.com:sh-dar/foodgram-project-react.git
 ```
 **Установить и активировать виртуальное окружение:**
-для MacOS:
+* для MacOS:
 ```
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-для Windows:
+* для Windows:
 ```
 python -m venv venv
 source venv/Scripts/activate
