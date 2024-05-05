@@ -4,15 +4,15 @@
 
 ## Используемые технологии
 
-Django==3.2.16
-djangorestframework==3.14.0
-django_filter==22.1
-djoser==2.1.0
-drf-extra-fields==4.11.0
-flake8==6.0.0
-flake8-isort==6.0.0
-Pillow==9.3.0
-python-dotenv==1.0.1
+* Django==3.2.16
+* djangorestframework==3.14.0
+* django_filter==22.1
+* djoser==2.1.0
+* drf-extra-fields==4.11.0
+* flake8==6.0.0
+* flake8-isort==6.0.0
+* Pillow==9.3.0
+* python-dotenv==1.0.1
 
 ## Инструкция по запуску проекта
 
