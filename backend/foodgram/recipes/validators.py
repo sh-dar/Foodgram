@@ -2,8 +2,6 @@ import re
 
 from django.core.exceptions import ValidationError
 
-from .constants import MIN_INGREDIENT_AMOUNT as MIN_ING
-
 
 INVALID_USERNAME_ERROR = ('Недопустимые символы в имени пользователя: '
                           '{invalid_symbols}.')

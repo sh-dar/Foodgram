@@ -3,7 +3,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.db.models import Q
 from django.utils.safestring import mark_safe
-from django.utils.translation import gettext_lazy
 
 from .constants import FAST_COOKING, SLOW_COOKING
 from .models import (
@@ -222,6 +221,7 @@ class TagAdmin(admin.ModelAdmin):
     list_filter = (
         'name',
     )
+
     @admin.display(description='Цвет')
     @mark_safe
     def display_color(self, tag):
