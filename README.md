@@ -3,16 +3,11 @@
 Проект «Фудграм» — сайт, на котором пользователи могут публиковать рецепты, добавлять чужие рецепты в избранное и подписываться на публикации других авторов. Пользователям сайта также доступен сервис «Список покупок». Он позволит создавать список продуктов, которые нужно купить для приготовления выбранных блюд.
 
 ## Используемые технологии
-
-* Django==3.2.16
-* djangorestframework==3.14.0
-* django_filter==22.1
-* djoser==2.1.0
-* drf-extra-fields==4.11.0
-* flake8==6.0.0
-* flake8-isort==6.0.0
-* Pillow==9.3.0
-* python-dotenv==1.0.1
+* Python 3.9
+* Django 3.2
+* Django Rest Framework 3.14
+* Djoser 2.1
+* Python-dotenv 1.0 ###############
 
 ## Инструкция по запуску проекта
 
@@ -21,6 +16,10 @@
 git clone git@github.com:sh-dar/foodgram-project-react.git
 ```
 **Установить и активировать виртуальное окружение:**
+* Перейти в папку проекта
+```
+cd foodgram-project-react
+```
 * для MacOS:
 ```
 python3 -m venv venv
@@ -37,6 +36,10 @@ source venv/Scripts/activate
 pip install -r requirements.txt
 ```
 **Применить миграции:**
+* Перейти в папку c файлом manage.py 
+```
+cd backend/foodgram
+```
 ```
 python manage.py migrate
 ```
@@ -58,7 +61,7 @@ python manage.py runserver
 docker-compose up
 ```
 Спецификация станет доступна по адресу:
-http://localhost/api/docs/
+[Документация API](http://localhost/api/docs/)
 
 ### Автор
 [Dari Sharapova - sh-dar](https://github.com/sh-dar)
