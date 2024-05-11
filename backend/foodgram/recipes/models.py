@@ -103,7 +103,7 @@ class Tag(models.Model):
 class Ingredient(models.Model):
     name = models.CharField(
         'Продукт',
-        max_length=MAX_LENGTH_CHAR,
+        max_length=MAX_LENGHT_FIELD,
     )
     measurement_unit = models.CharField(
         'Единица измерения',
