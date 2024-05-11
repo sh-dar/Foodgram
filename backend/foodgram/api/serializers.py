@@ -5,7 +5,7 @@ from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
 
-from recipes.constants import MIN_INGREDIENT_AMOUNT as MIN_ING
+from recipes.constants import MIN_INGREDIENT_AMOUNT
 from recipes.models import (
     Favorite,
     Follow,
@@ -121,7 +121,7 @@ class RecipeLiteSerializer(serializers.ModelSerializer):
 
 class RecipeIngredientsSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source='ingredients.id')
-    amount = serializers.IntegerField(min_value=MIN_ING)
+    amount = serializers.IntegerField(min_value=MIN_INGREDIENT_AMOUNT)
 
     class Meta:
         model = RecipeIngredients
@@ -160,13 +160,15 @@ class RecipeSafeSerializer(serializers.ModelSerializer):
 
     def get_is_favorited(self, recipe):
         user = self.context.get('request').user
-        return not user.is_anonymous and \
+        return not user.is_anonymous and (
             user.favorites.filter(recipe=recipe).exists()
+        )
 
     def get_is_in_shopping_cart(self, recipe):
         user = self.context.get('request').user
-        return not user.is_anonymous and \
+        return not user.is_anonymous and (
             user.shoppingcarts.filter(recipe=recipe).exists()
+        )
 
 
 class RecipeSerializer(serializers.ModelSerializer):

@@ -25,9 +25,8 @@ class RecipeFilter(FilterSet):
         fields = ('is_favorited', 'is_in_shopping_cart', 'author', 'tags')
 
     def filter_tags(self, recipes, slug, tags):
-        tags = self.request.query_params.getlist('tags')
         return recipes.filter(
-            tags__slug__in=tags
+            tags__slug__in=self.request.GET.getlist('tags')
         ).distinct()
 
     def filter_is_favorited(self, recipes, name, value):

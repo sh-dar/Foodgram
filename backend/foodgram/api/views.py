@@ -10,7 +10,6 @@ from rest_framework.response import Response
 from rest_framework.status import (
     HTTP_201_CREATED,
     HTTP_204_NO_CONTENT,
-    HTTP_400_BAD_REQUEST,
 )
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
@@ -114,21 +113,12 @@ class RecipeViewSet(ModelViewSet):
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data, status=HTTP_201_CREATED)
-        # Не могу использовать get_object_or_404(...).delete(), т.к. в постмане
-        # есть условие: "Запрос зарегистрированного пользователя на удаление из
-        # корзины рецепта, который не был туда добавлен, должен вернуть ответ
-        # со статусом 400"
-        recipe_in_list = model.objects.filter(
+        get_object_or_404(
+            model,
             user=request.user,
             recipe=get_object_or_404(Recipe, id=pk)
-        )
-        if recipe_in_list.exists():
-            recipe_in_list.delete()
-            return Response(status=HTTP_204_NO_CONTENT)
-        return Response(
-            {'errors': 'Рецепт не существует'},
-            status=HTTP_400_BAD_REQUEST
-        )
+        ).delete()
+        return Response(status=HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=('POST', 'DELETE'))
     def favorite(self, request, pk):

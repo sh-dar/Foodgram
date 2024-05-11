@@ -1,10 +1,13 @@
+import ast
+
 from django.contrib import admin
 from django.contrib.auth import get_user_model
-from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.db.models import Q
 from django.utils.safestring import mark_safe
 
 from .constants import FAST_COOKING, SLOW_COOKING
+from .constants import MAX_LENGTH_STRING
 from .models import (
     Favorite,
     Follow,
@@ -18,7 +21,7 @@ from .models import (
 User = get_user_model()
 
 
-class HasSubscriptionsOrFollowersFilter(admin.SimpleListFilter):
+class SubscriptionsFollowersFilter(admin.SimpleListFilter):
     title = 'Есть подписки/подписчики'
     parameter_name = 'has_subscriptions_or_followers'
 
@@ -31,11 +34,11 @@ class HasSubscriptionsOrFollowersFilter(admin.SimpleListFilter):
     def queryset(self, request, users):
         if self.value() == 'has_subscriptions':
             return users.filter(
-                Q(authors__isnull=False)
+                Q(followers__isnull=False)
             )
         if self.value() == 'has_followers':
             return users.filter(
-                Q(followers__isnull=False)
+                Q(authors__isnull=False)
             )
 
 
@@ -44,29 +47,34 @@ class CookingTimeFilter(admin.SimpleListFilter):
     parameter_name = 'cooking_time'
 
     def lookups(self, request, model_admin):
+
+        fast = (0, FAST_COOKING - 1)
+        medium = (FAST_COOKING, SLOW_COOKING)
+        slow = (SLOW_COOKING + 1, 10**10)
+
         fast_recipes_count = Recipe.objects.filter(
-            cooking_time__lt=FAST_COOKING
+            cooking_time__range=fast
         ).count()
         medium_recipes_count = Recipe.objects.filter(
-            cooking_time__range=(FAST_COOKING, SLOW_COOKING)
+            cooking_time__range=medium
         ).count()
         slow_recipes_count = Recipe.objects.filter(
-            cooking_time__gt=SLOW_COOKING
+            cooking_time__range=slow
         ).count()
 
         return (
             (
-                (0, FAST_COOKING - 1),
+                fast,
                 f'Быстрые (< {FAST_COOKING} мин) '
                 f'({fast_recipes_count})'
             ),
             (
-                (FAST_COOKING, SLOW_COOKING),
+                medium,
                 f'Средние ({FAST_COOKING} - {SLOW_COOKING} мин) '
                 f'({medium_recipes_count})'
             ),
             (
-                (SLOW_COOKING + 1, 10**10),
+                slow,
                 f'Долгие (> {SLOW_COOKING} мин) '
                 f'({slow_recipes_count})'
             ),
@@ -74,11 +82,13 @@ class CookingTimeFilter(admin.SimpleListFilter):
 
     def queryset(self, request, recipes):
         if self.value():
-            return recipes.filter(cooking_time__range=eval(self.value()))
+            return recipes.filter(
+                cooking_time__range=ast.literal_eval(self.value())
+            )
 
 
 @admin.register(User)
-class UserAdmin(UserAdmin):
+class UserAdmin(DjangoUserAdmin):
     list_display = (
         'username',
         'first_name',
@@ -86,25 +96,25 @@ class UserAdmin(UserAdmin):
         'email',
         'total_recipes',
         'total_followers',
-        'total_authors',
+        'total_subscriptions',
     )
     search_fields = (
         'username',
         'email',
     )
-    list_filter = (HasSubscriptionsOrFollowersFilter,)
+    list_filter = (SubscriptionsFollowersFilter,)
 
     @admin.display(description='Рецепты')
     def total_recipes(self, recipe):
         return recipe.recipes.count()
 
     @admin.display(description='Подписки')
-    def total_authors(self, author):
-        return Follow.objects.filter(author=author).count()
+    def total_subscriptions(self, user):
+        return user.followers.count()
 
     @admin.display(description='Подписчики')
-    def total_followers(self, follower):
-        return Follow.objects.filter(follower=follower).count()
+    def total_followers(self, user):
+        return user.authors.count()
 
 
 @admin.register(Follow)
@@ -125,6 +135,7 @@ class FollowAdmin(admin.ModelAdmin):
 class IngredientInline(admin.TabularInline):
     model = RecipeIngredients
     extra = 3
+    autocomplete_fields = ['ingredient']
 
 
 @admin.register(Recipe)
@@ -163,7 +174,7 @@ class RecipeAdmin(admin.ModelAdmin):
 
     @admin.display(description='В избранном')
     def total_favorite(self, recipe):
-        return recipe.recipes_favorite_related.count()
+        return recipe.favorites.count()
 
     @admin.display(description='Теги')
     @mark_safe
@@ -174,7 +185,7 @@ class RecipeAdmin(admin.ModelAdmin):
     @mark_safe
     def display_ingredients(self, recipe):
         return '<br> '.join(
-            f'{ingredient.ingredient.name} - '
+            f'{ingredient.ingredient.name[:MAX_LENGTH_STRING]} - '
             f'{ingredient.amount} '
             f'{ingredient.ingredient.measurement_unit} '
             for ingredient in recipe.recipe_ingredients.all()
@@ -196,7 +207,7 @@ class IngredientAdmin(admin.ModelAdmin):
         'measurement_unit',
     )
 
-    @admin.display(description='Количество применения в рецептах')
+    @admin.display(description='В рецептах')
     def used_in_recipes_count(self, ingredient):
         return RecipeIngredients.objects.filter(ingredient=ingredient).count()
 

@@ -1,5 +1,6 @@
 import json
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
@@ -10,7 +11,7 @@ class Command(BaseCommand):
     help = 'Import ingredients from ingredients.json'
 
     def handle(self, *args, **options):
-        file_path = '../../data/ingredients.json'
+        file_path = f'{settings.IMPORT_FOLDER}/ingredients.json'
 
         with open(file_path, 'r', encoding='utf-8') as file:
             ingredients = json.load(file)
