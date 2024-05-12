@@ -18,7 +18,7 @@ services:
     image: shdar/foodgram_backend
     env_file: .env
     volumes:
-      - static:/backend_static
+      - static:/static
       - media:/app/media/
     depends_on:
       - db
@@ -29,11 +29,12 @@ services:
       - ../frontend/:/app/result_build/
 
   nginx:
-    image: shdar/foodgram_nginx
+    image: nginx:1.19.3
     env_file: .env
     ports:
       - 7000:80
     volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - ../frontend/build:/usr/share/nginx/html/
       - ../docs/:/usr/share/nginx/html/api/docs/
       - static:/static/
