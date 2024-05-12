@@ -148,6 +148,7 @@ class RecipeAdmin(admin.ModelAdmin):
         'display_tags',
         'display_ingredients',
         'total_favorite',
+        'pub_date',
     )
     search_fields = (
         'name',
