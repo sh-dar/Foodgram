@@ -79,7 +79,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('name', models.CharField(max_length=50, unique=True, verbose_name='Тег')),
-                ('color', models.CharField(max_length=7, unique=True, validators=[recipes.validators.validate_hex_color], verbose_name='Цветовой код')),
+                ('color', models.CharField(max_length=7, unique=True, validators=[], verbose_name='Цветовой код')),
                 ('slug', models.SlugField(max_length=30, unique=True, verbose_name='Идентификатор тега')),
             ],
             options={

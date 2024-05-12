@@ -1,5 +1,5 @@
 from django.contrib.auth.models import AbstractUser
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 
 from .constants import (
@@ -10,7 +10,7 @@ from .constants import (
     MIN_TIME,
     MAX_COLOR_FIELD,
 )
-from .validators import validate_hex_color, validate_username
+from .validators import validate_username
 
 
 class User(AbstractUser):
@@ -83,7 +83,12 @@ class Tag(models.Model):
         'Цветовой код',
         max_length=MAX_COLOR_FIELD,
         unique=True,
-        validators=(validate_hex_color,),
+        validators=(
+            RegexValidator(
+                r'^#([A-Fa-f0-9]{6})$',
+                'Пожалуйста, введите цвет в формате HEX.'
+            ),
+        ),
     )
     slug = models.SlugField(
         'Идентификатор тега',
@@ -138,7 +143,7 @@ class Recipe(models.Model):
         'Текстовое описание',
     )
     cooking_time = models.PositiveIntegerField(
-        'Время приготовления в минутах',
+        'Время (мин)',
         validators=(
             MinValueValidator(
                 MIN_TIME,
@@ -158,12 +163,16 @@ class Recipe(models.Model):
         Tag,
         verbose_name='Теги',
     )
+    pub_date = models.DateTimeField(
+        'Дата публикации',
+        auto_now_add=True
+    )
 
     class Meta:
         verbose_name = 'рецепт'
         verbose_name_plural = 'Рецепты'
         default_related_name = 'recipes'
-        ordering = ('name',)
+        ordering = ('-pub_date',)
 
     def __str__(self):
         return self.name[:MAX_LENGTH_STRING]

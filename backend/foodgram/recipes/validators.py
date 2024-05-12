@@ -15,9 +15,3 @@ def validate_username(username):
                 invalid_symbols=''.join(set(invalid_symbols)))
         )
     return username
-
-
-def validate_hex_color(value):
-    if re.match(r'^#([A-Fa-f0-9]{6})$', value):
-        return value
-    raise ValidationError('Пожалуйста, введите цвет в формате HEX.')

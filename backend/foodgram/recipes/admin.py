@@ -1,4 +1,4 @@
-import ast
+from ast import literal_eval
 
 from django.contrib import admin
 from django.contrib.auth import get_user_model
@@ -83,7 +83,7 @@ class CookingTimeFilter(admin.SimpleListFilter):
     def queryset(self, request, recipes):
         if self.value():
             return recipes.filter(
-                cooking_time__range=ast.literal_eval(self.value())
+                cooking_time__range=literal_eval(self.value())
             )
 
 
@@ -154,7 +154,6 @@ class RecipeAdmin(admin.ModelAdmin):
         'author__username',
     )
     list_filter = (
-        'name',
         'author__username',
         'tags',
         CookingTimeFilter
