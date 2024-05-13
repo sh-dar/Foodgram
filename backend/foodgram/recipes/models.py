@@ -120,6 +120,12 @@ class Ingredient(models.Model):
         verbose_name_plural = 'Продукты'
         default_related_name = 'ingredients'
         ordering = ('name',)
+        constraints = (
+            models.UniqueConstraint(
+                fields=('name', 'measurement_unit'),
+                name='unique_ingredient',
+            ),
+        )
 
     def __str__(self):
         return f'{self.name[:MAX_LENGTH_STRING]} ({self.measurement_unit})'
