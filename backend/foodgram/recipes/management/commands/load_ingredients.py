@@ -16,8 +16,8 @@ class Command(BaseCommand):
             ingredients = json.load(file)
 
             Ingredient.objects.bulk_create(
-                (Ingredient(**ingredient) for ingredient in ingredients),
-            )
+                Ingredient(**ingredient) for ingredient in ingredients
+            ),
 
         self.stdout.write(self.style.SUCCESS(
             'Продукты успешно импортированы'
