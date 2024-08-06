@@ -88,7 +88,7 @@
 1. Клонировать репозиторий:
 
     ```
-    git clone git@github.com:sh-dar/foodgram-project-react.git
+    git clone git@github.com:sh-dar/foodgram.git
     ```
 
 2. Установить и активировать виртуальное окружение:
@@ -96,7 +96,7 @@
     Перейти в папку проекта
 
     ```
-    cd foodgram-project-react
+    cd foodgram
     ```
 
     для MacOS:

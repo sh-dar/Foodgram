@@ -89,7 +89,7 @@ Foodgram is a website for publishing and sharing recipes. Authorized users can s
 1. Clone the repository:
 
     ```
-    git clone git@github.com:sh-dar/foodgram-project-react.git
+    git clone git@github.com:sh-dar/foodgram.git
     ```
 
 2. Install and activate the virtual environment:
@@ -97,7 +97,7 @@ Foodgram is a website for publishing and sharing recipes. Authorized users can s
     Go to the project folder
 
     ```
-    cd foodgram-project-react
+    cd foodgram
     ```
 
     for MacOS:
@@ -118,7 +118,7 @@ Foodgram is a website for publishing and sharing recipes. Authorized users can s
     pip install -r requirements.txt
     ```
 
-4. Apply migrations
+4. Apply migrations:
 
     Go to the folder with the manage.py file 
     ```
