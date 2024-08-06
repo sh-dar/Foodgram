@@ -1,6 +1,7 @@
 [![Main Foodgram workflow](https://github.com/sh-dar/foodgram-project-react/actions/workflows/main.yml/badge.svg)](https://github.com/sh-dar/foodgram-project-react/actions/workflows/main.yml)
 
-# About the Foodgram project:
+# Foodgram
+
 The Foodgram is a website for publishing and sharing recipes. Authorized users can subscribe to their favorite authors, add recipes to their favorites and shopping list, and download the shopping list. Unregistered users have access to registration, authorization, and viewing other users' recipes.
 
 ## Technologies
