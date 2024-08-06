@@ -2,7 +2,7 @@
 
 # Foodgram
 
-The Foodgram is a website for publishing and sharing recipes. Authorized users can subscribe to their favorite authors, add recipes to their favorites and shopping list, and download the shopping list. Unregistered users have access to registration, authorization, and viewing other users' recipes.
+Foodgram is a website for publishing and sharing recipes. Authorized users can subscribe to their favorite authors, add recipes to their favorites and shopping list, and download the shopping list. Unregistered users have access to registration, authorization, and viewing other users' recipes.
 
 ## Technologies
 
